@@ -31,7 +31,7 @@ from core.exceptions import LLMCallError, LLMParseError
 
 logger = structlog.get_logger(__name__)
 
-# Lazy Groq client (avoids import error if key not yet set in tests) 
+# Lazy Groq client
 _groq_client = None
 
 
@@ -45,7 +45,7 @@ def _get_groq_client():
     return _groq_client
 
 
-#  Mock responses for dry-run mode 
+# Mock responses for dry-run mode 
 
 _DRY_RUN_MOCKS: dict[str, Any] = {
     "default": {"result": "dry_run_mock_response", "dry_run": True},
@@ -70,11 +70,14 @@ _DRY_RUN_MOCKS: dict[str, Any] = {
     "claims": {
         "claims": [
             {
-                "text": "This is a mock claim for dry-run mode.",
-                "population": "general",
-                "timeframe": "N/A",
-                "outcome_metric": "N/A",
-                "study_design": "unknown",
+                # source_id is intentionally left as a sentinel;
+                # evidence_extractor replaces this at call time via _inject_dry_run_source_id
+                "source_id": "__DRY_RUN_SOURCE__",
+                "text": "This is a mock claim for dry-run mode. No real LLM was called.",
+                "population": "general population",
+                "timeframe": "12 months",
+                "outcome_metric": "primary outcome measure",
+                "study_design": "randomized controlled trial",
             }
         ]
     },
@@ -100,7 +103,7 @@ def _get_mock(call_type: str) -> dict:
     return _DRY_RUN_MOCKS.get(call_type, _DRY_RUN_MOCKS["default"])
 
 
-#  JSON extraction helpers 
+# JSON extraction helpers 
 
 def _strip_markdown_fences(text: str) -> str:
     """Remove ```json ... ``` or ``` ... ``` wrappers that LLMs sometimes emit."""
@@ -118,7 +121,7 @@ def _try_parse_json(text: str) -> dict:
     return json.loads(cleaned)
 
 
-#  Core LLM call (with tenacity retry) 
+# Core LLM call (with tenacity retry) 
 
 def _call_groq_raw(
     system_prompt: str,
@@ -161,7 +164,7 @@ def _call_groq_with_retry(
     return _call_groq_raw(system_prompt, user_prompt, model_name, max_tokens, temperature)
 
 
-#  Public API 
+# Public API 
 
 def call_llm(
     system_prompt: str,
@@ -221,7 +224,7 @@ def call_llm(
         max_tokens=max_tokens,
     )
 
-    #  Attempt 1: direct call 
+    # Attempt 1: direct call 
     t0 = time.monotonic()
     try:
         raw = _call_groq_with_retry(
@@ -243,13 +246,13 @@ def call_llm(
     elapsed = time.monotonic() - t0
     log.info("llm_call_success", elapsed_s=round(elapsed, 3), response_len=len(raw))
 
-    #  Parse attempt 1 
+    # Parse attempt 1 
     try:
         return _try_parse_json(raw)
     except json.JSONDecodeError:
         log.warning("llm_parse_failed_attempt_1", raw_preview=raw[:200])
 
-    #  Re-prompt: ask the model to fix its JSON 
+    # Re-prompt: ask the model to fix its JSON 
     correction_prompt = (
         f"Your previous response was not valid JSON. "
         f"Here is what you returned:\n\n{raw[:1000]}\n\n"
