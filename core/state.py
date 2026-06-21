@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import List, Optional, Literal, TypedDict
 
 
-# Type Aliases 
+# Type Aliases  
 
 ConfidenceTier = Literal["High", "Moderate", "Low", "Insufficient Evidence"]
 BiasFlag = Literal["none", "low", "moderate", "high"]
@@ -32,7 +32,7 @@ ChallengeSeverity = Literal["critical", "moderate", "minor"]
 ArbiterRuling = Literal["valid_critical", "valid_minor", "invalid", "dismissed"]
 
 
-# PipelineState 
+# PipelineState  
 
 class PipelineState(TypedDict):
     """
@@ -40,20 +40,20 @@ class PipelineState(TypedDict):
     Flows through every LangGraph node.
     """
 
-    # Identity 
+    # Identity       
     request_id: str
     question: str
     raw_sources: List[dict]
 
-    # Input guardrail output 
+    # Input guardrail output    
     input_domain_flag: Optional[str]         # "medical" | "legal" | "financial" | None
     input_rejected: bool
     input_rejection_reason: Optional[str]
 
-    # Source count guardrail output 
+    # Source count guardrail output   
     source_count_ceiling: Optional[ConfidenceTier]  # set if < source_count_floor usable sources
 
-    # After Ingress agent 
+    # After Ingress agent     
     normalized_sources: List[dict]
     # Each entry: {
     #   source_id: str,       # "src_001", "src_002", …
@@ -66,7 +66,7 @@ class PipelineState(TypedDict):
     #   metadata: dict,
     # }
 
-    # After Source Scorer agent 
+    # After Source Scorer agent    
     scored_sources: List[dict]
     # Each entry: {
     #   source_id: str,
@@ -80,7 +80,7 @@ class PipelineState(TypedDict):
     dropped_sources: List[dict]
     # Each entry: {source_id, domain, reason: "denylist" | "validation_failed"}
 
-    # After Evidence Extractor agent 
+    # After Evidence Extractor agent   
     claims: List[dict]
     # Each entry: {
     #   claim_id: str,            # "clm_001", …
@@ -93,7 +93,7 @@ class PipelineState(TypedDict):
     #   low_credibility: bool,    # True if source credibility < min_credibility_threshold
     # }
 
-    # After Contradiction Detector agent 
+    # After Contradiction Detector agent  
     contradictions: List[dict]
     # Each entry: {
     #   conflict_id: str,         # "con_001", …
@@ -104,7 +104,7 @@ class PipelineState(TypedDict):
     #   similarity_score: float,
     # }
 
-    # Synthesis ↔ Skeptic ↔ Arbiter loop 
+    # Synthesis ↔ Skeptic ↔ Arbiter loop  
     preliminary_answer: Optional[str]
 
     skeptic_challenges: List[dict]
@@ -143,13 +143,14 @@ class PipelineState(TypedDict):
     # }
 
     disclaimer: Optional[str]     # appended by Egress if domain flag is set
+    api_response: Optional[dict]  # formatted APIResponse dict set by Egress
 
-    # HITL 
+    # HITL  
     hitl_required: bool
     hitl_approved: Optional[bool]
     hitl_reviewer_notes: Optional[str]
 
-    # Audit 
+    # Audit  
     audit_trail: List[dict]
     # Each entry appended by every agent: {
     #   event: str,
@@ -205,6 +206,7 @@ def make_initial_state(request_id: str, question: str, raw_sources: List[dict]) 
         unresolved_contradictions=[],
         claim_source_map=[],
         disclaimer=None,
+        api_response=None,
 
         # HITL
         hitl_required=False,
